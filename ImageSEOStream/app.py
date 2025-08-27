@@ -77,6 +77,9 @@ def apply_modern_css():
         min-height: 100vh;
     }
     
+/* Force all text to be white */
+* {
+    color: white !important;
     /* Header styling */
     .header-container {
         background: rgba(255, 255, 255, 0.95);
