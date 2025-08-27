@@ -569,7 +569,7 @@ Quality and creativity are more important than exact word count."""
     
     def _smart_crop_image(self, image, target_dimensions):
         """
-        Apply 2-stage smart resize and crop with enhanced algorithm
+        Apply enhanced smart resize and crop with PIL-based intelligent cropping
         
         Args:
             image (PIL.Image): Input image
@@ -590,7 +590,7 @@ Quality and creativity are more important than exact word count."""
             if abs(target_ratio - original_ratio) < 0.01:
                 return image.resize((target_width, target_height), Image.Resampling.LANCZOS)
             
-            # Stage 1: Smart resize to prepare for cropping
+            # Enhanced Stage 1: Smart resize with better scaling
             if target_ratio > original_ratio:
                 # Target is wider - resize based on height, then crop width
                 scale_factor = target_height / original_height
@@ -602,15 +602,143 @@ Quality and creativity are more important than exact word count."""
                 new_width = target_width
                 new_height = int(original_height * scale_factor)
             
-            # Resize the image
+            # Resize the image with high quality
             resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
             
-            # Stage 2: Center crop to exact target dimensions
-            return self._center_crop_image(resized_image, target_dimensions)
+            # Enhanced Stage 2: Intelligent cropping based on image content
+            return self._intelligent_crop_image(resized_image, target_dimensions)
             
         except Exception as e:
             logger.warning(f"Smart crop error: {e}")
             return self._center_crop_image(image, target_dimensions)
+    
+    def _intelligent_crop_image(self, image, target_dimensions):
+        """
+        Intelligent cropping that tries to preserve important content
+        
+        Args:
+            image (PIL.Image): Input image
+            target_dimensions (tuple): (width, height) target dimensions
+            
+        Returns:
+            PIL.Image: Intelligently cropped image
+        """
+        try:
+            target_width, target_height = target_dimensions
+            original_width, original_height = image.size
+            
+            # Calculate aspect ratios
+            target_ratio = target_width / target_height
+            original_ratio = original_width / original_height
+            
+            # Strategy 1: Rule of thirds crop (more visually appealing)
+            if target_ratio > original_ratio:
+                # Target is wider - fit to width, crop height
+                crop_width = original_width
+                crop_height = int(original_width / target_ratio)
+                
+                # Use rule of thirds for vertical positioning
+                # Focus on the middle third of the image (more interesting than center)
+                top = (original_height - crop_height) // 3
+                left = 0
+            else:
+                # Target is taller - fit to height, crop width
+                crop_height = original_height
+                crop_width = int(original_height * target_ratio)
+                
+                # Use rule of thirds for horizontal positioning
+                # Focus on the middle third of the image
+                left = (original_width - crop_width) // 3
+                top = 0
+            
+            right = left + crop_width
+            bottom = top + crop_height
+            
+            # Strategy 2: Try to find the most interesting area based on brightness
+            try:
+                # Convert to grayscale for brightness analysis
+                gray_image = image.convert('L')
+                
+                # Analyze brightness in different crop areas
+                best_crop = self._find_best_crop_area(gray_image, target_dimensions)
+                if best_crop:
+                    left, top, right, bottom = best_crop
+                    cropped_image = image.crop((left, top, right, bottom))
+                else:
+                    # Fallback to rule of thirds
+                    cropped_image = image.crop((left, top, right, bottom))
+            except:
+                # Fallback to rule of thirds if brightness analysis fails
+                cropped_image = image.crop((left, top, right, bottom))
+            
+            return cropped_image.resize((target_width, target_height), Image.Resampling.LANCZOS)
+            
+        except Exception as e:
+            logger.warning(f"Intelligent crop error: {e}")
+            return self._center_crop_image(image, target_dimensions)
+    
+    def _find_best_crop_area(self, gray_image, target_dimensions):
+        """
+        Find the best crop area based on brightness analysis
+        
+        Args:
+            gray_image (PIL.Image): Grayscale image
+            target_dimensions (tuple): Target dimensions
+            
+        Returns:
+            tuple: (left, top, right, bottom) or None
+        """
+        try:
+            target_width, target_height = target_dimensions
+            original_width, original_height = gray_image.size
+            
+            # Calculate crop dimensions
+            target_ratio = target_width / target_height
+            original_ratio = original_width / original_height
+            
+            if target_ratio > original_ratio:
+                crop_width = original_width
+                crop_height = int(original_width / target_ratio)
+            else:
+                crop_height = original_height
+                crop_width = int(original_height * target_ratio)
+            
+            # Test different crop positions
+            best_score = -1
+            best_crop = None
+            
+            # Test 3 different positions for better results
+            positions = [0.25, 0.5, 0.75]  # 25%, 50%, 75% positions
+            
+            for pos in positions:
+                if target_ratio > original_ratio:
+                    # Vertical crop
+                    top = int((original_height - crop_height) * pos)
+                    left = 0
+                else:
+                    # Horizontal crop
+                    left = int((original_width - crop_width) * pos)
+                    top = 0
+                
+                right = left + crop_width
+                bottom = top + crop_height
+                
+                # Calculate average brightness in this area
+                crop_area = gray_image.crop((left, top, right, bottom))
+                brightness = sum(crop_area.getextrema()) / 2  # Average of min/max
+                
+                # Prefer areas with good contrast (not too bright, not too dark)
+                if 50 <= brightness <= 200:  # Good brightness range
+                    score = brightness
+                    if score > best_score:
+                        best_score = score
+                        best_crop = (left, top, right, bottom)
+            
+            return best_crop
+            
+        except Exception as e:
+            logger.warning(f"Brightness analysis error: {e}")
+            return None
     
     def _center_crop_image(self, image, target_dimensions):
         """
