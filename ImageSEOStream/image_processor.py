@@ -4,8 +4,13 @@ import re
 from pathlib import Path
 from PIL import Image, ImageOps, ImageEnhance
 import io
-import cv2
-import numpy as np
+try:
+    import cv2
+    import numpy as np
+    OPENCV_AVAILABLE = True
+except ImportError:
+    OPENCV_AVAILABLE = False
+    print("Warning: OpenCV not available. Some image processing features may be limited.")
 from openai import OpenAI
 import logging
 
