@@ -77,9 +77,6 @@ def apply_modern_css():
         min-height: 100vh;
     }
     
-/* Force all text to be white */
-* {
-    color: white !important;
     /* Header styling */
     .header-container {
         background: rgba(255, 255, 255, 0.95);
@@ -505,24 +502,49 @@ def render_sidebar_config():
         
         # API Key Section
         with st.expander("🔑 API Configuration", expanded=True):
-            # Get saved API key
+            # Get saved API key (but don't display it)
             saved_api_key = get_api_key()
             
-            api_key = st.text_input(
-                "OpenAI API Key",
-                value=saved_api_key,
-                type="password",
-                help="Enter your OpenAI API key to enable AI analysis"
+            # Checkbox to use saved API key
+            use_saved_key = st.checkbox(
+                "Use saved API key",
+                value=bool(saved_api_key),
+                help="Check to use the saved API key, uncheck to enter your own"
             )
             
-            if api_key and api_key != saved_api_key:
-                if st.button("💾 Save API Key"):
-                    if save_api_key_to_config(api_key):
-                        st.success("✅ API Key saved to config file")
-                        st.rerun()
-                    else:
-                        st.error("❌ Failed to save API key")
+            api_key = ""
             
+            if use_saved_key:
+                if saved_api_key:
+                    api_key = saved_api_key
+                    st.success("✅ Using saved API key")
+                else:
+                    st.error("❌ No saved API key found")
+                    use_saved_key = False
+            
+            if not use_saved_key:
+                # Show input field for custom API key
+                custom_api_key = st.text_input(
+                    "Enter your OpenAI API Key",
+                    type="password",
+                    help="Enter your OpenAI API key to enable AI analysis"
+                )
+                
+                if custom_api_key:
+                    api_key = custom_api_key
+                    
+                    # Option to save the custom key
+                    if st.button("💾 Save this API key"):
+                        if save_api_key_to_config(custom_api_key):
+                            st.success("✅ API key saved successfully")
+                            st.rerun()
+                        else:
+                            st.error("❌ Failed to save API key")
+                
+                if not custom_api_key:
+                    st.error("❌ API Key required")
+            
+            # Show status
             if api_key:
                 st.success("✅ API Key configured")
             else:
