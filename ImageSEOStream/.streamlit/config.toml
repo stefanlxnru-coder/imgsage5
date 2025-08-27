@@ -13,9 +13,9 @@ serverPort = 8501
 
 [theme]
 primaryColor = "#667eea"
-backgroundColor = "#ffffff"
-secondaryBackgroundColor = "#f0f2f6"
-textColor = "#262730"
+backgroundColor = "#1a1a1a"
+secondaryBackgroundColor = "#2d2d2d"
+textColor = "#ffffff"
 font = "sans serif"
 
 [client]
