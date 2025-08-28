@@ -602,8 +602,13 @@ Quality and creativity are more important than exact word count."""
                 new_width = target_width
                 new_height = int(original_height * scale_factor)
             
-            # Resize the image with high quality
+            # Resize the image with maximum quality
             resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # Apply subtle sharpening for better quality
+            from PIL import ImageEnhance
+            enhancer = ImageEnhance.Sharpness(resized_image)
+            resized_image = enhancer.enhance(1.1)  # Slight sharpening
             
             # Enhanced Stage 2: Intelligent cropping based on image content
             return self._intelligent_crop_image(resized_image, target_dimensions)
@@ -614,7 +619,7 @@ Quality and creativity are more important than exact word count."""
     
     def _intelligent_crop_image(self, image, target_dimensions):
         """
-        Intelligent cropping that tries to preserve important content
+        Enhanced intelligent cropping that preserves the main subject
         
         Args:
             image (PIL.Image): Input image
@@ -631,45 +636,29 @@ Quality and creativity are more important than exact word count."""
             target_ratio = target_width / target_height
             original_ratio = original_width / original_height
             
-            # Strategy 1: Rule of thirds crop (more visually appealing)
+            # Strategy 1: Center crop (most reliable for subject preservation)
             if target_ratio > original_ratio:
                 # Target is wider - fit to width, crop height
                 crop_width = original_width
                 crop_height = int(original_width / target_ratio)
                 
-                # Use rule of thirds for vertical positioning
-                # Focus on the middle third of the image (more interesting than center)
-                top = (original_height - crop_height) // 3
+                # Center crop vertically (preserves main subject)
+                top = (original_height - crop_height) // 2
                 left = 0
             else:
                 # Target is taller - fit to height, crop width
                 crop_height = original_height
                 crop_width = int(original_height * target_ratio)
                 
-                # Use rule of thirds for horizontal positioning
-                # Focus on the middle third of the image
-                left = (original_width - crop_width) // 3
+                # Center crop horizontally (preserves main subject)
+                left = (original_width - crop_width) // 2
                 top = 0
             
             right = left + crop_width
             bottom = top + crop_height
             
-            # Strategy 2: Try to find the most interesting area based on brightness
-            try:
-                # Convert to grayscale for brightness analysis
-                gray_image = image.convert('L')
-                
-                # Analyze brightness in different crop areas
-                best_crop = self._find_best_crop_area(gray_image, target_dimensions)
-                if best_crop:
-                    left, top, right, bottom = best_crop
-                    cropped_image = image.crop((left, top, right, bottom))
-                else:
-                    # Fallback to rule of thirds
-                    cropped_image = image.crop((left, top, right, bottom))
-            except:
-                # Fallback to rule of thirds if brightness analysis fails
-                cropped_image = image.crop((left, top, right, bottom))
+            # Use center crop for better subject preservation
+            cropped_image = image.crop((left, top, right, bottom))
             
             return cropped_image.resize((target_width, target_height), Image.Resampling.LANCZOS)
             
@@ -780,7 +769,7 @@ Quality and creativity are more important than exact word count."""
     
     def _optimize_and_save_image(self, image, output_path, save_format, quality):
         """
-        Optimize and save image with enhanced compression settings
+        Optimize and save image with enhanced quality settings
         
         Args:
             image (PIL.Image): Image to save
@@ -789,8 +778,12 @@ Quality and creativity are more important than exact word count."""
             quality (int): Compression quality
         """
         try:
+            # Ensure image is in RGB mode for best quality
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+            
             if save_format == "WEBP":
-                # WebP specific optimizations
+                # WebP with high quality settings
                 image.save(
                     output_path,
                     format="WEBP",
@@ -800,26 +793,27 @@ Quality and creativity are more important than exact word count."""
                     lossless=False
                 )
             elif save_format == "JPEG":
-                # JPEG specific optimizations
+                # JPEG with maximum quality settings
                 image.save(
                     output_path,
                     format="JPEG",
                     quality=quality,
                     optimize=True,
                     progressive=True,
-                    subsampling=0  # Best quality subsampling
+                    subsampling=0,  # Best quality subsampling
+                    dpi=(300, 300)  # High DPI for better quality
                 )
             elif save_format == "PNG":
-                # PNG optimization
+                # PNG with quality preservation
                 image.save(
                     output_path,
                     format="PNG",
                     optimize=True,
-                    compress_level=9  # Maximum compression
+                    compress_level=6  # Balanced compression
                 )
             else:
-                # Fallback
-                image.save(output_path, format=save_format, optimize=True)
+                # Fallback with high quality
+                image.save(output_path, format=save_format, optimize=True, quality=quality)
                 
         except Exception as e:
             raise Exception(f"Failed to save image: {str(e)}")
